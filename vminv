@@ -16,8 +16,6 @@
 
 set -euo pipefail
 
-VMINV_VERSION="0.3.0"
-
 # --- Locate self / load library ---------------------------------------------
 SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P)"
 # If invoked via a symlink (installed CLI), resolve to the real install dir.
@@ -31,6 +29,8 @@ for _m in collect_infra collect_vms collect_perf analyze_blockers rightsize repo
   # shellcheck disable=SC1090
   source "${SELF_DIR}/lib/${_m}.sh"
 done
+
+VMINV_VERSION="$(resolve_version)"   # git-tag-driven (see resolve_version in common.sh)
 
 # --- Defaults for CLI-settable values ---------------------------------------
 COMMAND=""
@@ -236,19 +236,21 @@ _suggest_command() {
   done
 }
 
-# Resolve which config file to load: explicit --config > --profile > repo .env >
-# default profile > repo .env (fallback). Profiles never contain secrets.
-resolve_config_file() {
-  if [ -n "$CONFIG_FILE_EXPLICIT" ]; then printf '%s' "$CONFIG_FILE_EXPLICIT"; return; fi
+# Resolve the config file and set RESOLVED_CONFIG_FILE (and PROFILE if it
+# defaulted). Precedence: --config > --profile NAME > the 'default' profile
+# (created by `vminv configure`) > repo ./.env (dev convenience) > built-in
+# defaults. A configured 'default' profile beats the repo placeholder .env so
+# that `vminv configure` is immediately effective for a bare `vminv`.
+resolve_config() {
+  if [ -n "$CONFIG_FILE_EXPLICIT" ]; then RESOLVED_CONFIG_FILE="$CONFIG_FILE_EXPLICIT"; return; fi
   if [ -n "$PROFILE" ]; then
-    local pf; pf="$(vminv_profile_file "$PROFILE")"
-    [ -f "$pf" ] || die "Profile '${PROFILE}' not found (${pf}). Create it: vminv configure ${PROFILE}"
-    printf '%s' "$pf"; return
+    RESOLVED_CONFIG_FILE="$(vminv_profile_file "$PROFILE")"
+    [ -f "$RESOLVED_CONFIG_FILE" ] || die "$EX_USAGE" "Profile '${PROFILE}' not found (${RESOLVED_CONFIG_FILE}). Create it: vminv configure ${PROFILE}"
+    return
   fi
-  if [ -f "${SELF_DIR}/.env" ]; then printf '%s' "${SELF_DIR}/.env"; return; fi
   local dp; dp="$(vminv_profile_file default)"
-  if [ -f "$dp" ]; then printf '%s' "$dp"; return; fi
-  printf '%s' "${SELF_DIR}/.env"
+  if [ -f "$dp" ]; then PROFILE="default"; RESOLVED_CONFIG_FILE="$dp"; return; fi
+  RESOLVED_CONFIG_FILE="${SELF_DIR}/.env"
 }
 
 apply_cli_overrides() {
@@ -315,18 +317,68 @@ init_output() {
 
 # --- about / version ---------------------------------------------------------
 # Parse `govc about -json` (handles both 'about' and legacy 'About' keys).
+# govc's stderr is routed to $VMINV_ERR_FILE (a parent-owned temp; set in
+# run_scan_path) so callers can surface the REAL reason (auth, DNS, TLS, port)
+# even though fetch_about runs inside a command-substitution subshell.
+VMINV_ERR_FILE=""
 fetch_about() {
-  govc_query about about -json | "$JQ_BIN" '
-    (.about // .About) as $a
-    | { name: $a.name, fullName: $a.fullName, version: $a.version,
-        build: $a.build, apiType: $a.apiType, apiVersion: $a.apiVersion }'
+  local raw rc errf="${VMINV_ERR_FILE:-/dev/null}"
+  : >"$errf" 2>/dev/null || true
+  raw="$(govc_query about about -json 2>"$errf")"; rc=$?
+  [ "$rc" -ne 0 ] && return 1     # connection/auth/TLS error -> stderr is in $errf
+  # govc connected. Parse defensively: the About object may be nested (.about/.About)
+  # or top-level, and fields may be lowerCamel or PascalCase across govc versions.
+  local out
+  out="$(printf '%s' "$raw" | "$JQ_BIN" -e '
+      (.about // .About // .) as $a
+      | { name:       ($a.name // $a.Name),
+          fullName:   ($a.fullName // $a.FullName),
+          version:    ($a.version // $a.Version),
+          build:      ($a.build // $a.Build),
+          apiType:    ($a.apiType // $a.ApiType),
+          apiVersion: ($a.apiVersion // $a.ApiVersion) }
+      | select(.version != null)' 2>/dev/null)" || {
+    # Connected but the output shape was not understood — capture it for diagnosis.
+    { printf "connected, but 'about' output was not understood. govc returned (first 400 chars):\n"
+      printf '%s' "$raw" | head -c 400; } >>"$errf" 2>/dev/null
+    return 1
+  }
+  printf '%s' "$out"
+}
+
+# Emit a connectivity failure with the captured govc error + actionable hints.
+_die_conn() {
+  local e=""
+  [ -n "${VMINV_ERR_FILE:-}" ] && [ -f "$VMINV_ERR_FILE" ] && \
+    e="$(redact "$(tr -d '\r' <"$VMINV_ERR_FILE" | grep -vE '^[[:space:]]*$' | head -3 | tr '\n' ' ')")"
+  err "cannot reach vCenter (read of 'about' failed)."
+  [ -n "$e" ] && err "  govc: ${e}"
+  dbg "govc about error: ${e}"
+  # Tailored next step based on what govc reported.
+  case "$e" in
+    *"no such host"*|*"lookup "*)
+      err "  → DNS can't resolve the host. Fix one of:"
+      err "      • use the vCenter IP:  vminv configure ${PROFILE:-default} --set VCENTER_HOST=<ip>"
+      err "      • add to /etc/hosts:   echo '<ip> ${VCENTER_HOST}' | sudo tee -a /etc/hosts"
+      err "      • point this machine at the lab DNS server" ;;
+    *"i/o timeout"*|*"connection refused"*|*"no route"*|*"network is unreachable"*)
+      err "  → Host not reachable. Check network/VPN and that TCP 443 is open from here." ;;
+    *"incorrect user name or password"*|*"InvalidLogin"*|*"Login"*|*"cannot complete login"*)
+      err "  → Authentication failed. Check VCENTER_USER and the password." ;;
+    *x509*|*certificate*|*"tls:"*)
+      err "  → TLS trust issue. For a lab set VCENTER_INSECURE=true, or import the CA." ;;
+    *)
+      err "  → Check: host reachable (DNS/port 443), credentials, and 'vminv config'." ;;
+  esac
+  err "  Full error:  vminv --dry-run -v"
+  exit "$EX_CONN"
 }
 
 # --- Commands ---------------------------------------------------------------
 cmd_dry_run() {
   info "Dry run: validating read-only connectivity (no data will be written to vCenter)."
   local about
-  about="$(fetch_about)" || die "$EX_CONN" "could not query vCenter 'about' — check host, credentials, and network/TLS."
+  about="$(fetch_about)" || _die_conn
   local ver build name
   ver="$("$JQ_BIN" -r '.version // "?"' <<<"$about")"
   build="$("$JQ_BIN" -r '.build // "?"' <<<"$about")"
@@ -393,12 +445,12 @@ cmd_scan() {
 
   # Connectivity proof first (also captures vCenter version for the record).
   local about
-  if about="$(fetch_about 2>/dev/null)"; then
+  if about="$(fetch_about)"; then
     printf '%s\n' "$about" >"${RUN_DIR}/vcenter.json"
     ok "vCenter: $("$JQ_BIN" -r '"\(.name) \(.version) build \(.build)"' <<<"$about")"
   elif [ -z "${VMINV_FIXTURES}" ]; then
     # Live mode: if we cannot even read 'about', the whole scan would be empty.
-    die "$EX_CONN" "cannot reach vCenter (read of 'about' failed) — check host, credentials, TLS."
+    _die_conn
   fi
 
   # Infrastructure inventory (datacenters, clusters, hosts, datastores, networks, pools).
@@ -453,7 +505,7 @@ cmd_scan() {
 }
 
 # Load config (tolerant): resolve the file and source it; never dies on absence.
-load_config_resolved() { RESOLVED_CONFIG_FILE="$(resolve_config_file)"; load_config "$RESOLVED_CONFIG_FILE"; apply_cli_overrides; }
+load_config_resolved() { resolve_config; load_config "$RESOLVED_CONFIG_FILE"; apply_cli_overrides; }
 
 # The full scan path (also used by `schedule run`).
 run_scan_path() {
@@ -461,6 +513,7 @@ run_scan_path() {
   load_config_resolved
   validate_config
   prepare_connection
+  VMINV_ERR_FILE="$(mktemp)"; register_tmp "$VMINV_ERR_FILE"
   if [ "$DO_DRY_RUN" -eq 1 ]; then cmd_dry_run; else cmd_scan; fi
 }
 

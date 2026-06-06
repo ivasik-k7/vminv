@@ -112,9 +112,14 @@ _ask() {
 }
 _ask_choice() { # _ask_choice <var> <prompt> <default> <opt1> <opt2> ...
   local __v="$1" prompt="$2" def="$3"; shift 3
-  local opts="$*" ans
-  printf '%s (%s) [%s]: ' "$prompt" "${opts// /|}" "$def" >&2
-  IFS= read -r ans || true; [ -z "$ans" ] && ans="$def"
+  local -a opts=("$@"); local ans o valid
+  while :; do
+    printf '%s (%s) [%s]: ' "$prompt" "$(IFS='|'; echo "${opts[*]}")" "$def" >&2
+    IFS= read -r ans || true; [ -z "$ans" ] && ans="$def"
+    valid=0; for o in "${opts[@]}"; do [ "$ans" = "$o" ] && valid=1 && break; done
+    if [ "$valid" -eq 1 ]; then break; fi
+    printf '  ! "%s" is not one of: %s\n' "$ans" "$(IFS=' '; echo "${opts[*]}")" >&2
+  done
   printf -v "$__v" '%s' "$ans"
 }
 
@@ -130,6 +135,11 @@ cmd_configure() {
   _ask host    "vCenter host"                  "${VCENTER_HOST:-}"
   _ask user    "vCenter user"                  "${VCENTER_USER:-svc-vminv@vsphere.local}"
   _ask_choice insecure "Allow self-signed TLS" "${VCENTER_INSECURE:-false}" true false
+  printf '\n  How should the vCenter PASSWORD be provided at run time?\n' >&2
+  printf '    prompt  = vminv asks you each run (most secure; nothing stored)\n' >&2
+  printf '    env     = you export $VCENTER_PASSWORD before running\n' >&2
+  printf '    keyring = store it now in your OS keyring (libsecret/Keychain)\n' >&2
+  printf '  (You do NOT type the password here unless you choose "keyring".)\n' >&2
   _ask_choice pwsrc "Password source"          "${PASSWORD_SOURCE:-prompt}" prompt env keyring
   _ask dc      "Scope: datacenter (blank=all)" "${SCOPE_DATACENTER:-}"
   _ask cluster "Scope: cluster (blank=all)"    "${SCOPE_CLUSTER:-}"

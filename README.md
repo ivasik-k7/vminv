@@ -121,6 +121,27 @@ identical output. The only thing fixtures can't cover is the first run against a
 real vCenter — start with `--dry-run`, then a scoped `--cluster` scan, and verify
 the output against what you know.
 
+## Versioning & releases
+
+The version is **git-tag driven** (`git describe`): on a tag it's `1.2.3`; between
+tags it's `1.2.3-N-g<hash>`; with no tags it's `<VERSION>-g<hash>` (the `VERSION`
+file is the baseline); an installed release tarball reports the `VERSION` it shipped
+with. Check it: `vminv version`.
+
+**CI** ([.github/workflows/ci.yml](.github/workflows/ci.yml)) on every push/PR:
+lint (bash `-n`, shellcheck, PowerShell parse) · full test suite + **bash⇄PowerShell
+conformance** on Linux · suite on macOS (bash-4 portability) · the PowerCLI path on
+Windows.
+
+**Release** ([.github/workflows/release.yml](.github/workflows/release.yml)) — to cut
+a release: bump `VERSION`, then tag it:
+```bash
+git tag v1.2.3 && git push origin v1.2.3
+```
+CI must pass; the tag must match `VERSION`; it then publishes a GitHub Release with a
+`checksums.txt` that **`vminv upgrade` verifies** the download against, plus a clean
+`vminv-1.2.3.tar.gz` artifact.
+
 ## Status
 
 Feature-complete across all stages in **both** implementations, industry-standard

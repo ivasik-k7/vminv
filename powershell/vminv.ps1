@@ -23,7 +23,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Vminv.psd1') -Force
 
-$version = '0.3.0'
+$version = & (Get-Module Vminv) { Get-VminvVersion }   # private fn, run in module scope
 function Show-Usage {
   @"
 vminv — read-only VMware vSphere pre-migration inventory & assessment (PowerCLI)
