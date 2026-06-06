@@ -34,7 +34,7 @@ cmd_config() {
   printf '  %-22s %s\n' "PERF_WINDOW_DAYS" "${PERF_WINDOW_DAYS:-30} (${PERF_INTERVAL:-daily})"
   printf '  %-22s %s\n' "OUTPUT_DIR"     "${OUTPUT_DIR:-./output}"
   printf '  %-22s %s\n' "UPLOAD_DEST"    "${UPLOAD_DEST:-<none>}"
-  printf '  %-22s %s\n' "VMINV_REPO"     "${VMINV_REPO:-<none>}"
+  printf '  %-22s %s\n' "upgrade source" "${VMINV_UPGRADE_REPO:-?} (fixed)"
   printf '\n(Password is never displayed or stored in the profile.)\n'
 }
 

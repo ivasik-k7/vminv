@@ -23,7 +23,7 @@ function Build-Inventory([string]$OutDir, [string]$Target) {
   # than re-serialize, so single-element arrays stay arrays (ConvertTo-Json would
   # unwrap them). Mirrors the bash jq --argjson assembler.
   $schema = Get-Schema
-  $meta = ConvertTo-Json -Compress -InputObject ([ordered]@{ tool = 'vminv'; version = '0.3.0'; generated_at = ([DateTimeOffset]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")); target = $Target })
+  $meta = ConvertTo-Json -Compress -InputObject ([ordered]@{ tool = 'vminv'; version = (Get-VminvVersion); generated_at = ([DateTimeOffset]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")); target = $Target })
   $vcFile = Join-Path $OutDir 'vcenter.json'
   $vc = if (Test-Path $vcFile) { (Get-Content -Raw $vcFile).TrimEnd() } else { '{}' }
   $parts = [System.Collections.Generic.List[string]]::new()

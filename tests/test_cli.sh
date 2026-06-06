@@ -49,9 +49,10 @@ assert_fail "rejects malformed cron (3 fields)" schedule_add prod "0 2 *"
 echo "== presets: five of them =="
 assert_eq "5" "${#CRON_PRESETS[@]}" "five cron presets provided"
 
-echo "== upgrade: requires a repo =="
+echo "== upgrade: source is fixed, not overridable =="
+source "${ROOT}/lib/common.sh" 2>/dev/null || true
 source "${ROOT}/lib/upgrade.sh"
-VMINV_REPO=""; VMINV_VERSION="0.0.0"
-assert_fail "upgrade without repo fails clearly" cmd_upgrade
+assert_eq "ivasik-k7/vminv" "$VMINV_UPGRADE_REPO" "upgrade repo is the fixed upstream"
+assert_fail "--repo is rejected (not overridable)" cmd_upgrade --repo someone/else
 
 finish

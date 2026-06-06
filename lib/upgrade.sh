@@ -2,16 +2,18 @@
 #
 # lib/upgrade.sh — `vminv upgrade`: self-update from GitHub Releases.
 #
-# Resolves the latest release of $VMINV_REPO (owner/name), downloads the source
-# tarball, verifies it against the release's checksums.txt when present, and
-# installs it over the current installation directory (after backing it up).
+# Fetches the latest release of the FIXED upstream repo (below), downloads the
+# source tarball, verifies it against the release's checksums.txt when present,
+# and installs it over the current installation directory (after backing it up).
 #
-#   vminv upgrade [--repo owner/name] [--check]
+#   vminv upgrade [--check]
 #
-# The repo can come from --repo, $VMINV_REPO, or the active profile. There is no
-# repo baked in, so this fails clearly until one is configured.
+# The upgrade source is intentionally NOT user-overridable.
 #
 # Sourced by vminv; requires lib/common.sh.
+
+# Fixed upstream — not overridable via flag, env, or profile.
+readonly VMINV_UPGRADE_REPO="ivasik-k7/vminv"
 
 VMINV_INSTALL_DIR="${SELF_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}"
 
@@ -28,19 +30,15 @@ _latest_tag() { # _latest_tag <owner/repo>
 }
 
 cmd_upgrade() {
-  local repo="${UPGRADE_REPO:-${VMINV_REPO:-}}" check=0
+  local repo="$VMINV_UPGRADE_REPO" check=0
   while [ $# -gt 0 ]; do
     case "$1" in
-      --repo) repo="$2"; shift ;;
-      --repo=*) repo="${1#*=}" ;;
       --check) check=1 ;;
-      *) die "upgrade: unknown argument '$1'" ;;
+      --repo|--repo=*) usage_error "the upgrade source is fixed (${VMINV_UPGRADE_REPO}); --repo is not supported" ;;
+      *) usage_error "upgrade: unknown argument '$1'" ;;
     esac
     shift
   done
-  [ -n "$repo" ] || die "No upgrade source configured. Set VMINV_REPO=owner/name (vminv configure) or pass --repo owner/name."
-  [[ "$repo" == */* ]] || die "Repo must be 'owner/name' (got '${repo}')."
-
   info "Current version: ${VMINV_VERSION}. Checking ${repo} for the latest release ..."
   local tag; tag="$(_latest_tag "$repo")"
   [ -n "$tag" ] || die "Could not determine the latest release of ${repo} (no releases, or network/API error)."
@@ -86,9 +84,12 @@ cmd_upgrade() {
 
   # Copy code, leaving runtime/data dirs intact.
   local item
-  for item in vminv setup.sh setup.ps1 README.md lib matrices powershell tests config.example.env checksums.txt; do
+  for item in vminv setup.sh setup.ps1 README.md lib matrices powershell tests share config.example.env checksums.txt VERSION; do
     [ -e "${srcdir}/${item}" ] && cp -a "${srcdir}/${item}" "${VMINV_INSTALL_DIR}/"
   done
+  # Stamp VERSION with the installed tag so `vminv version` is correct even if the
+  # source archive's committed VERSION lagged the release.
+  printf '%s\n' "${tag#v}" >"${VMINV_INSTALL_DIR}/VERSION"
   chmod +x "${VMINV_INSTALL_DIR}/vminv" "${VMINV_INSTALL_DIR}/setup.sh" 2>/dev/null || true
   rm -rf "$tmp"
   ok "Upgraded to ${tag}. Backup at ${backup}."

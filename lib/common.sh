@@ -127,7 +127,7 @@ CONFIG_KEYS=(
   THRESHOLD_LARGE_DISK_GB THRESHOLD_LARGE_VM_GB
   THRESHOLD_OLD_HW_VERSION THRESHOLD_SNAPSHOT_AGE_DAYS
   TARGET_PROVIDER OUTPUT_DIR
-  UPLOAD_DEST VMINV_REPO
+  UPLOAD_DEST
 )
 
 # --- Config home & named profiles (aws-cli-style) ---------------------------
@@ -276,6 +276,23 @@ JQ_OC_HELPERS='
 
 # now_epoch : current time in epoch seconds (portable: GNU and BSD date).
 now_epoch() { date -u +%s; }
+
+# resolve_version : industry-standard git-describe versioning.
+#   * exact/after a tag   -> 1.2.3  or  1.2.3-5-g<hash>[-dirty]   (tags are vX.Y.Z)
+#   * git checkout, no tag -> <VERSION>-<shorthash>[-dirty]       (e.g. 0.1.0-g1a2b3c4)
+#   * no git (installed/release tarball) -> contents of the VERSION file
+# The VERSION file is the release baseline (bumped + tagged together at release).
+resolve_version() {
+  local base; base="$(cat "${ROOT_DIR}/VERSION" 2>/dev/null || echo 0.1.0)"
+  if command -v git >/dev/null 2>&1 && git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+    local desc; desc="$(git -C "$ROOT_DIR" describe --tags --dirty --always 2>/dev/null || true)"
+    case "$desc" in
+      v[0-9]*) printf '%s' "${desc#v}"; return ;;     # on/after a vX.Y.Z tag
+      ?*)      printf '%s-g%s' "$base" "${desc#g}"; return ;;  # no tags yet: base-g<hash>
+    esac
+  fi
+  printf '%s' "$base"
+}
 
 # Tool presence/version helpers (kept here so the govc binary is referenced only
 # within common.sh — the read-only chokepoint; see tests/test_readonly.sh).

@@ -1,0 +1,78 @@
+name: Release
+
+# Tag a release:  git tag v1.2.3 && git push origin v1.2.3
+# The tag MUST match the VERSION file (enforced below). The published
+# checksums.txt is what `vminv upgrade` verifies the downloaded source against.
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+', 'v[0-9]+.[0-9]+.[0-9]+-*']
+
+permissions:
+  contents: write   # create the GitHub Release
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: test gate (must pass before release)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - run: ./setup.sh --no-cli --user
+      - run: ./tests/run_tests.sh
+        env:
+          PWSH: pwsh
+
+  release:
+    name: build + publish release
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Version from tag
+        run: |
+          TAG="${GITHUB_REF_NAME}"; VER="${TAG#v}"
+          echo "VER=$VER" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "Releasing version: $VER (tag $TAG)"
+
+      - name: Build checksums + release artifacts
+        run: |
+          # Stage tracked files, then STAMP VERSION = tag so installed copies report it.
+          rm -rf stage && mkdir -p stage/vminv
+          git archive "$TAG" | tar -x -C stage/vminv
+          echo "$VER" > stage/vminv/VERSION
+          # Source artifact (stamped).
+          tar czf "vminv-${VER}.tar.gz" -C stage vminv
+          SRC_SHA="$(sha256sum "vminv-${VER}.tar.gz" | awk '{print $1}')"
+          # Offline bundle (Linux x86_64): + vendored govc/jq -> extract & ./setup.sh --offline
+          ./setup.sh --no-cli --user
+          cp -a bin/. stage/vminv/bin/
+          tar czf "vminv-${VER}-offline-linux-amd64.tgz" -C stage vminv
+          OFFLINE_SHA="$(sha256sum "vminv-${VER}-offline-linux-amd64.tgz" | awk '{print $1}')"
+          # Checksum of the GitHub source archive — what `vminv upgrade` downloads (first line).
+          url="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${TAG}.tar.gz"
+          curl -fsSL --retry 5 --retry-delay 3 -o "/tmp/${TAG}.tar.gz" "$url"
+          ARCHIVE_SHA="$(sha256sum "/tmp/${TAG}.tar.gz" | awk '{print $1}')"
+          {
+            echo "${ARCHIVE_SHA}  ${TAG}.tar.gz"
+            echo "${SRC_SHA}  vminv-${VER}.tar.gz"
+            echo "${OFFLINE_SHA}  vminv-${VER}-offline-linux-amd64.tgz"
+          } > checksums.txt
+          echo "checksums.txt:"; cat checksums.txt
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" \
+            checksums.txt "vminv-${VER}.tar.gz" "vminv-${VER}-offline-linux-amd64.tgz" \
+            --title "vminv ${TAG}" \
+            --generate-notes \
+            --verify-tag

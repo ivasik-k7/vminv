@@ -15,7 +15,9 @@ TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 rc() { "$@" >/dev/null 2>&1; echo $?; }
 
 echo "== version / help =="
-assert_eq "vminv $(grep -m1 '^VMINV_VERSION=' "$VM" | sed 's/.*"\(.*\)"/\1/')" "$("$VM" version)" "version prints vminv <semver>"
+# Version is git-tag-driven (resolve_version): "vminv <X.Y.Z...>" — non-empty token.
+out="$("$VM" version)"
+case "$out" in vminv\ ?*) _pass "version prints 'vminv <version>'" ;; *) _fail "version output: '$out'" ;; esac
 assert_eq "0" "$(rc "$VM" version)" "version exits 0"
 assert_contains "$("$VM" scan --help)" "USAGE: vminv [scan]" "scan --help has usage"
 assert_contains "$("$VM" schedule --help)" "add|list|remove|run" "schedule --help describes subcommands"
