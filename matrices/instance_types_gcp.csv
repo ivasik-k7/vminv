@@ -1,0 +1,21 @@
+instance_type,vcpu,mem_gib,family,note
+e2-small,2,2,burstable,shared-core dev/test
+e2-medium,2,4,burstable,shared-core dev/test
+e2-standard-2,2,8,general,cost-optimized
+e2-standard-4,4,16,general,cost-optimized
+n2-standard-2,2,8,general,balanced
+n2-standard-4,4,16,general,balanced
+n2-standard-8,8,32,general,balanced
+n2-standard-16,16,64,general,balanced
+n2-standard-32,32,128,general,balanced
+n2-standard-48,48,192,general,balanced
+n2-standard-64,64,256,general,balanced
+n2-highcpu-8,8,8,compute,compute-optimized
+n2-highcpu-16,16,16,compute,compute-optimized
+n2-highcpu-32,32,32,compute,compute-optimized
+n2-highmem-2,2,16,memory,memory-optimized
+n2-highmem-4,4,32,memory,memory-optimized
+n2-highmem-8,8,64,memory,memory-optimized
+n2-highmem-16,16,128,memory,memory-optimized
+n2-highmem-32,32,256,memory,memory-optimized
+n2-highmem-48,48,384,memory,memory-optimized

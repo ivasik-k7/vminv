@@ -1,0 +1,22 @@
+instance_type,vcpu,mem_gib,family,note
+Standard_B1ms,1,2,burstable,dev/test bursty
+Standard_B2s,2,4,burstable,dev/test bursty
+Standard_B2ms,2,8,burstable,general bursty
+Standard_D2s_v5,2,8,general,balanced
+Standard_D4s_v5,4,16,general,balanced
+Standard_D8s_v5,8,32,general,balanced
+Standard_D16s_v5,16,64,general,balanced
+Standard_D32s_v5,32,128,general,balanced
+Standard_D48s_v5,48,192,general,balanced
+Standard_D64s_v5,64,256,general,balanced
+Standard_F2s_v2,2,4,compute,compute-optimized
+Standard_F4s_v2,4,8,compute,compute-optimized
+Standard_F8s_v2,8,16,compute,compute-optimized
+Standard_F16s_v2,16,32,compute,compute-optimized
+Standard_F32s_v2,32,64,compute,compute-optimized
+Standard_E2s_v5,2,16,memory,memory-optimized
+Standard_E4s_v5,4,32,memory,memory-optimized
+Standard_E8s_v5,8,64,memory,memory-optimized
+Standard_E16s_v5,16,128,memory,memory-optimized
+Standard_E32s_v5,32,256,memory,memory-optimized
+Standard_E48s_v5,48,384,memory,memory-optimized

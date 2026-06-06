@@ -1,0 +1,10 @@
+{
+  "about": {
+    "name": "VMware vCenter Server",
+    "fullName": "VMware vCenter Server 8.0.2 build-22617221",
+    "version": "8.0.2",
+    "build": "22617221",
+    "apiType": "VirtualCenter",
+    "apiVersion": "8.0.2.0"
+  }
+}

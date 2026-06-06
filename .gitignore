@@ -1,0 +1,30 @@
+# --- Secrets & local config (NEVER commit) ----------------------------------
+.env
+config.env
+*.local.env
+# named profiles live in ~/.config/vminv, but ignore any that land here:
+profiles/
+
+# --- Vendored binaries (repopulated by setup.sh) -----------------------------
+/bin/*
+!/bin/.gitkeep
+
+# --- Run outputs (timestamped; may contain environment data) -----------------
+/output/*
+!/output/.gitkeep
+# packed run tarballs / uploads
+*.tar.gz
+
+# --- Self-update backups (created by `vminv upgrade`) ------------------------
+*.bak.*
+
+# --- Editor / OS noise -------------------------------------------------------
+*.swp
+*~
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db
+
+# --- PowerShell -------------------------------------------------------------
+*.user

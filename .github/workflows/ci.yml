@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: tests + bash⇄PowerShell conformance
+    runs-on: ubuntu-latest    # has pwsh, shellcheck, curl, tar preinstalled
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pinned tools (govc + jq, checksum-verified)
+        run: ./setup.sh --no-cli --user
+
+      - name: Show readiness (doctor)
+        run: ./vminv doctor || true
+
+      - name: Run the full offline test suite
+        run: ./tests/run_tests.sh
+        env:
+          PWSH: pwsh          # enables the cross-implementation conformance test
+
+      - name: Smoke test — demo run on bundled fixtures
+        run: |
+          ./vminv demo --output /tmp/ci-demo --quiet
+          test -s "$(ls -d /tmp/ci-demo/*/ | head -1)/summary.md"
+
+  lint:
+    name: lint (syntax)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: bash syntax check
+        run: |
+          for f in vminv setup.sh lib/*.sh tests/*.sh; do
+            bash -n "$f"
+          done
+
+      - name: PowerShell parse check
+        shell: pwsh
+        run: |
+          $bad = 0
+          Get-ChildItem -Recurse powershell -Include *.ps1,*.psm1 | ForEach-Object {
+            $errs = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$errs) | Out-Null
+            if ($errs.Count) { $bad++; Write-Host "PARSE FAIL: $($_.FullName)"; $errs | ForEach-Object { Write-Host "  $($_.Message)" } }
+          }
+          if ($bad) { exit 1 }
+
+      - name: shellcheck (informational)
+        continue-on-error: true
+        run: shellcheck --severity=error -e SC1090,SC1091 vminv setup.sh lib/*.sh || true

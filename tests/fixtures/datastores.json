@@ -1,0 +1,20 @@
+[
+  { "obj": { "type": "Datastore", "value": "datastore-21" },
+    "propSet": [
+      { "name": "name", "val": "vsanDatastore" },
+      { "name": "summary.type", "val": "vsan" },
+      { "name": "summary.capacity", "val": 21990232555520 },
+      { "name": "summary.freeSpace", "val": 10995116277760 },
+      { "name": "summary.accessible", "val": true },
+      { "name": "vm", "val": [ { "type": "VirtualMachine", "value": "vm-101" }, { "type": "VirtualMachine", "value": "vm-102" }, { "type": "VirtualMachine", "value": "vm-201" } ] }
+    ] },
+  { "obj": { "type": "Datastore", "value": "datastore-22" },
+    "propSet": [
+      { "name": "name", "val": "nfs-archive" },
+      { "name": "summary.type", "val": "NFS" },
+      { "name": "summary.capacity", "val": 5497558138880 },
+      { "name": "summary.freeSpace", "val": 4947802324992 },
+      { "name": "summary.accessible", "val": true },
+      { "name": "vm", "val": [ { "type": "VirtualMachine", "value": "vm-301" } ] }
+    ] }
+]

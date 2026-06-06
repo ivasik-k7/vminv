@@ -1,0 +1,13 @@
+[
+  { "obj": { "type": "HostSystem", "value": "host-11" },
+    "propSet": [
+      { "name": "name", "val": "esx-01.corp.example.com" },
+      { "name": "config.network.vswitch", "val": [
+          { "name": "vSwitch0", "numPorts": 128, "mtu": 1500 }
+      ] },
+      { "name": "config.network.portgroup", "val": [
+          { "spec": { "name": "Management Network", "vlanId": 0, "vswitchName": "vSwitch0" } },
+          { "spec": { "name": "Legacy-VLAN50", "vlanId": 50, "vswitchName": "vSwitch0" } }
+      ] }
+    ] }
+]

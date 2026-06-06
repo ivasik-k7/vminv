@@ -1,0 +1,14 @@
+[
+  { "obj": { "type": "DistributedVirtualPortgroup", "value": "dvportgroup-31" },
+    "propSet": [
+      { "name": "name", "val": "PG-Web-VLAN100" },
+      { "name": "config.defaultPortConfig.vlan.vlanId", "val": 100 },
+      { "name": "config.distributedVirtualSwitch", "val": { "type": "VmwareDistributedVirtualSwitch", "value": "dvs-30" } }
+    ] },
+  { "obj": { "type": "DistributedVirtualPortgroup", "value": "dvportgroup-32" },
+    "propSet": [
+      { "name": "name", "val": "PG-DB-VLAN200" },
+      { "name": "config.defaultPortConfig.vlan.vlanId", "val": 200 },
+      { "name": "config.distributedVirtualSwitch", "val": { "type": "VmwareDistributedVirtualSwitch", "value": "dvs-30" } }
+    ] }
+]

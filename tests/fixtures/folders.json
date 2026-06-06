@@ -1,0 +1,11 @@
+[
+  { "obj": { "type": "Folder", "value": "group-v1" },
+    "propSet": [ { "name": "name", "val": "vm" },
+                 { "name": "parent", "val": { "type": "Datacenter", "value": "datacenter-3" } } ] },
+  { "obj": { "type": "Folder", "value": "group-v100" },
+    "propSet": [ { "name": "name", "val": "Production" },
+                 { "name": "parent", "val": { "type": "Folder", "value": "group-v1" } } ] },
+  { "obj": { "type": "Folder", "value": "group-v101" },
+    "propSet": [ { "name": "name", "val": "Databases" },
+                 { "name": "parent", "val": { "type": "Folder", "value": "group-v1" } } ] }
+]

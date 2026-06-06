@@ -1,0 +1,4 @@
+[
+  { "name": "vSphere 8 Enterprise Plus", "editionKey": "esx.enterprisePlus.cpuPackage", "total": 16, "used": 4, "licenseKey": "AAAAA-BBBBB-CCCCC-DDDDD-EFGHK" },
+  { "name": "vCenter Server 8 Standard", "editionKey": "vc.standard.instance", "total": 1, "used": 1, "licenseKey": "VVVVV-WWWWW-XXXXX-YYYYY-ZZ123" }
+]

@@ -1,0 +1,12 @@
+pattern,aws,azure,gcp,note
+Windows Server 2003,no,no,no,End-of-life; not supported by cloud import/migration tooling
+Windows Server 2008,no,no,no,End-of-life; ESU only; generally unsupported by import tooling
+Windows.*(XP|Vista)|Windows 7,no,no,no,End-of-life desktop OS; unsupported
+CentOS 6|Red Hat.*(release [56]|Linux [56])|RHEL.*[56],no,no,no,End-of-life; unsupported by import tooling
+Windows Server 201[26]|Windows Server 2019|Windows Server 2022|Windows Server,yes,yes,yes,Supported Windows Server
+Windows 1[01],yes,yes,yes,Supported Windows client (verify licensing/use case)
+Ubuntu,yes,yes,yes,Supported Linux distribution
+CentOS 7|CentOS 8|CentOS 9|CentOS Stream,yes,yes,yes,Supported (verify EOL of CentOS 7/8)
+Red Hat|RHEL|Rocky|Alma|Oracle Linux,yes,yes,yes,Supported enterprise Linux
+Debian|SUSE|SLES|openSUSE,yes,yes,yes,Supported Linux distribution
+FreeBSD,no,yes,no,Limited cloud support; verify per provider

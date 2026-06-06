@@ -1,0 +1,25 @@
+[
+  { "obj": { "type": "ClusterComputeResource", "value": "domain-c7" },
+    "propSet": [
+      { "name": "name", "val": "Prod-Cluster-01" },
+      { "name": "summary.numHosts", "val": 4 },
+      { "name": "summary.numEffectiveHosts", "val": 4 },
+      { "name": "configuration.drsConfig.enabled", "val": true },
+      { "name": "configuration.drsConfig.defaultVmBehavior", "val": "fullyAutomated" },
+      { "name": "configuration.dasConfig.enabled", "val": true },
+      { "name": "summary.currentEVCModeKey", "val": "intel-skylake" },
+      { "name": "summary.totalCpu", "val": 184320 },
+      { "name": "summary.totalMemory", "val": 1099511627776 }
+    ] },
+  { "obj": { "type": "ClusterComputeResource", "value": "domain-c8" },
+    "propSet": [
+      { "name": "name", "val": "Dev-Cluster-02" },
+      { "name": "summary.numHosts", "val": 2 },
+      { "name": "summary.numEffectiveHosts", "val": 2 },
+      { "name": "configuration.drsConfig.enabled", "val": false },
+      { "name": "configuration.drsConfig.defaultVmBehavior", "val": "manual" },
+      { "name": "configuration.dasConfig.enabled", "val": false },
+      { "name": "summary.totalCpu", "val": 92160 },
+      { "name": "summary.totalMemory", "val": 549755813888 }
+    ] }
+]

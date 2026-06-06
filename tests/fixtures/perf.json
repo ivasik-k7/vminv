@@ -1,0 +1,30 @@
+[
+  { "entity": { "type": "VirtualMachine", "value": "vm-101" },
+    "sampleInfo": [ { "interval": 86400 } ],
+    "value": [
+      { "name": "cpu.usage.average",      "instance": "", "value": [ 1500, 2000, 2500, 1800, 3000 ] },
+      { "name": "cpu.usagemhz.average",   "instance": "", "value": [ 1000, 1400, 1700, 1200, 2100 ] },
+      { "name": "mem.consumed.average",   "instance": "", "value": [ 4194304, 5242880, 6291456, 4194304, 5242880 ] },
+      { "name": "mem.active.average",     "instance": "", "value": [ 1048576, 2097152, 1572864, 1048576, 2097152 ] },
+      { "name": "mem.usage.average",      "instance": "", "value": [ 5000, 6000, 7000, 5500, 6500 ] },
+      { "name": "disk.numberReadAveraged.average",  "instance": "", "value": [ 50, 80, 120, 60, 100 ] },
+      { "name": "disk.numberWriteAveraged.average", "instance": "", "value": [ 20, 30, 40, 25, 35 ] },
+      { "name": "disk.usage.average",     "instance": "", "value": [ 1024, 2048, 4096, 1500, 3000 ] },
+      { "name": "disk.maxTotalLatency.latest", "instance": "", "value": [ 2, 5, 8, 3, 10 ] },
+      { "name": "net.usage.average",      "instance": "", "value": [ 500, 800, 1200, 600, 1000 ] }
+    ] },
+  { "entity": { "type": "VirtualMachine", "value": "vm-201" },
+    "sampleInfo": [ { "interval": 86400 } ],
+    "value": [
+      { "name": "cpu.usage.average",      "instance": "", "value": [ 6000, 7000, 8500, 9000, 7500 ] },
+      { "name": "cpu.usagemhz.average",   "instance": "", "value": [ 20000, 24000, 30000, 33000, 27000 ] },
+      { "name": "mem.consumed.average",   "instance": "", "value": [ 50331648, 58720256, 62914560, 54525952, 60817408 ] },
+      { "name": "mem.active.average",     "instance": "", "value": [ 20971520, 26214400, 31457280, 23068672, 28311552 ] },
+      { "name": "mem.usage.average",      "instance": "", "value": [ 7800, 8500, 9200, 9500, 8800 ] },
+      { "name": "disk.numberReadAveraged.average",  "instance": "", "value": [ 400, 600, 900, 1200, 750 ] },
+      { "name": "disk.numberWriteAveraged.average", "instance": "", "value": [ 200, 300, 450, 600, 380 ] },
+      { "name": "disk.usage.average",     "instance": "", "value": [ 20480, 40960, 81920, 102400, 61440 ] },
+      { "name": "disk.maxTotalLatency.latest", "instance": "", "value": [ 5, 12, 20, 35, 15 ] },
+      { "name": "net.usage.average",      "instance": "", "value": [ 5000, 8000, 12000, 15000, 9000 ] }
+    ] }
+]

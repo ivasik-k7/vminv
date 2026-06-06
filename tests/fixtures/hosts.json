@@ -1,0 +1,33 @@
+[
+  { "obj": { "type": "HostSystem", "value": "host-11" },
+    "propSet": [
+      { "name": "name", "val": "esx-01.corp.example.com" },
+      { "name": "summary.hardware.vendor", "val": "Dell Inc." },
+      { "name": "summary.hardware.model", "val": "PowerEdge R740" },
+      { "name": "summary.hardware.cpuModel", "val": "Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz" },
+      { "name": "summary.hardware.numCpuPkgs", "val": 2 },
+      { "name": "summary.hardware.numCpuCores", "val": 40 },
+      { "name": "summary.hardware.numCpuThreads", "val": 80 },
+      { "name": "summary.hardware.memorySize", "val": 274877906944 },
+      { "name": "summary.config.product.version", "val": "8.0.2" },
+      { "name": "summary.config.product.build", "val": "22380479" },
+      { "name": "summary.runtime.connectionState", "val": "connected" },
+      { "name": "summary.runtime.powerState", "val": "poweredOn" },
+      { "name": "parent", "val": { "type": "ClusterComputeResource", "value": "domain-c7" } }
+    ] },
+  { "obj": { "type": "HostSystem", "value": "host-12" },
+    "propSet": [
+      { "name": "name", "val": "esx-02.corp.example.com" },
+      { "name": "summary.hardware.vendor", "val": "Dell Inc." },
+      { "name": "summary.hardware.model", "val": "PowerEdge R740" },
+      { "name": "summary.hardware.cpuModel", "val": "Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz" },
+      { "name": "summary.hardware.numCpuPkgs", "val": 2 },
+      { "name": "summary.hardware.numCpuCores", "val": 40 },
+      { "name": "summary.hardware.numCpuThreads", "val": 80 },
+      { "name": "summary.hardware.memorySize", "val": 274877906944 },
+      { "name": "summary.config.product.version", "val": "7.0.3" },
+      { "name": "summary.config.product.build", "val": "20328353" },
+      { "name": "summary.runtime.connectionState", "val": "connected" },
+      { "name": "summary.runtime.powerState", "val": "poweredOn" }
+    ] }
+]

@@ -1,0 +1,20 @@
+# Pinned SHA-256 checksums for vendored binaries.
+#
+# Format:  <sha256>  <asset-filename>
+#
+# This file is the trust anchor for setup.sh. When an asset is listed here,
+# setup.sh verifies the download against it and ABORTS on mismatch.
+#
+# When an asset is NOT listed (first time you pin a new version/arch), setup.sh
+# downloads it, prints the computed SHA-256, and appends it here as a
+# trust-on-first-use (TOFU) pin — printing a warning. Review the appended line,
+# confirm it against the upstream release notes / checksums.txt, and commit it.
+#
+# Pre-populate entries here from the official upstream checksum files to get
+# strict verification from the very first run:
+#   govc:  https://github.com/vmware/govmomi/releases  (checksums.txt per release)
+#   jq:    https://github.com/jqlang/jq/releases       (sha256sum.txt per release)
+#
+# Lines starting with '#' and blank lines are ignored.
+ae4ddf2ef6a0fb15d7a89bcb318516714bc95aef1218f9d711def4857814c633  govc_Linux_x86_64.tar.gz
+5942c9b0934e510ee61eb3e30273f1b3fe2590df93933a93d7c58b81d19c8ff5  jq-linux-amd64

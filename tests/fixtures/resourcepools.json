@@ -1,0 +1,12 @@
+[
+  { "obj": { "type": "ResourcePool", "value": "resgroup-50" },
+    "propSet": [
+      { "name": "name", "val": "Production-Pool" },
+      { "name": "config.cpuAllocation.reservation", "val": 20000 },
+      { "name": "config.cpuAllocation.limit", "val": -1 },
+      { "name": "config.cpuAllocation.shares.shares", "val": 8000 },
+      { "name": "config.memoryAllocation.reservation", "val": 32768 },
+      { "name": "config.memoryAllocation.limit", "val": -1 },
+      { "name": "config.memoryAllocation.shares.shares", "val": 81920 }
+    ] }
+]

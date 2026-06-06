@@ -1,0 +1,4 @@
+[
+  { "obj": { "type": "Datacenter", "value": "datacenter-3" },
+    "propSet": [ { "name": "name", "val": "DC-London" } ] }
+]

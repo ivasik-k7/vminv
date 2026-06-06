@@ -1,0 +1,6 @@
+[
+  { "EntityId": "host-11", "EntityDisplayName": "esx-01.corp.example.com",
+    "AssignedLicense": { "Name": "vSphere 8 Enterprise Plus", "EditionKey": "esx.enterprisePlus.cpuPackage" } },
+  { "EntityId": "host-12", "EntityDisplayName": "esx-02.corp.example.com",
+    "AssignedLicense": { "Name": "vSphere 8 Enterprise Plus", "EditionKey": "esx.enterprisePlus.cpuPackage" } }
+]

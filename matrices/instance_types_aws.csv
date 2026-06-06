@@ -1,0 +1,23 @@
+instance_type,vcpu,mem_gib,family,note
+t3.small,2,2,burstable,dev/test bursty
+t3.medium,2,4,burstable,dev/test bursty
+t3.large,2,8,burstable,general bursty
+t3.xlarge,4,16,burstable,general bursty
+m5.large,2,8,general,balanced
+m5.xlarge,4,16,general,balanced
+m5.2xlarge,8,32,general,balanced
+m5.4xlarge,16,64,general,balanced
+m5.8xlarge,32,128,general,balanced
+m5.12xlarge,48,192,general,balanced
+m5.16xlarge,64,256,general,balanced
+c5.large,2,4,compute,compute-optimized
+c5.xlarge,4,8,compute,compute-optimized
+c5.2xlarge,8,16,compute,compute-optimized
+c5.4xlarge,16,32,compute,compute-optimized
+c5.9xlarge,36,72,compute,compute-optimized
+r5.large,2,16,memory,memory-optimized
+r5.xlarge,4,32,memory,memory-optimized
+r5.2xlarge,8,64,memory,memory-optimized
+r5.4xlarge,16,128,memory,memory-optimized
+r5.8xlarge,32,256,memory,memory-optimized
+r5.12xlarge,48,384,memory,memory-optimized

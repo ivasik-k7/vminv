@@ -1,0 +1,5 @@
+[
+  { "name": "Production", "category": "Environment", "description": "Production workloads" },
+  { "name": "web-team",   "category": "Owner",       "description": "Owned by web team" },
+  { "name": "PCI",        "category": "Compliance",   "description": "In PCI-DSS scope" }
+]

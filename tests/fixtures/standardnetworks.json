@@ -1,0 +1,4 @@
+[
+  { "obj": { "type": "Network", "value": "network-40" },
+    "propSet": [ { "name": "name", "val": "VM Network" } ] }
+]

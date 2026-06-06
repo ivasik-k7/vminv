@@ -1,0 +1,33 @@
+{
+  "_comment": "Single source of truth for output table columns, shared by the bash and PowerCLI implementations. The bash test suite asserts its *_CSV_KEYS match this; the PowerShell module reads it directly. Order matters (CSV column order).",
+  "tables": {
+    "datacenters": ["name","moref"],
+    "clusters": ["name","num_hosts","num_effective_hosts","drs_enabled","drs_behavior","ha_enabled","evc_mode","total_cpu_mhz","total_memory_gib","moref"],
+    "licenses": ["name","edition","total","used","license_key_tail"],
+    "hosts": ["name","vendor","model","cpu_model","sockets","cores","threads","memory_gib","esxi_version","esxi_build","connection_state","power_state","license_edition","cluster_moref","moref"],
+    "standard_switches": ["host","name","num_ports","mtu"],
+    "standard_portgroups": ["host","name","vlan_id","vswitch"],
+    "datastores": ["name","type","capacity_gib","free_gib","used_gib","pct_used","vm_count","accessible","moref"],
+    "dvswitches": ["name","num_ports","version","uuid","moref"],
+    "networks": ["name","kind","vlan_id","switch","moref"],
+    "resourcepools": ["name","kind","cpu_reservation_mhz","cpu_limit_mhz","cpu_shares","mem_reservation_mib","mem_limit_mib","mem_shares","moref"],
+    "vms": ["name","power_state","migration_status","blocker_count","guest_os","guest_family","guest_arch","vcpu","cores_per_socket","memory_mb","cpu_reservation_mhz","cpu_limit_mhz","mem_reservation_mib","mem_limit_mib","ballooned_mib","swapped_mib","provisioned_gib","used_gib","disk_count","nic_count","snapshot_count","oldest_snapshot_age_days","snapshot_size_gib","firmware","secure_boot","hw_version","tools_status","tools_version","vmware_tools_installed","encrypted","fault_tolerance","template","primary_ip","guest_hostname","uptime_days","boot_time","host","cluster","resource_pool","vapp","folder_path","instance_uuid","moref"],
+    "disks": ["vm","label","provisioned_gib","used_gib","provisioning","disk_mode","independent","sharing","is_rdm","controller_type","datastore","vmdk_path","vm_moref"],
+    "nics": ["vm","label","adapter_type","mac_address","portgroup","vlan_id","connected","ip_addresses","vm_moref"],
+    "snapshots": ["vm","name","description","created","age_days","quiesced","state","id","vm_moref"],
+    "utilization": ["vm","vm_moref","window_days","interval_s","samples","insufficient_data","cpu_pct_avg","cpu_pct_peak","cpu_pct_p95","cpu_mhz_avg","cpu_mhz_peak","cpu_mhz_p95","mem_mb_avg","mem_mb_peak","mem_mb_p95","mem_active_mb_p95","mem_pct_p95","disk_iops_avg","disk_iops_peak","disk_kbps_avg","disk_kbps_peak","disk_latency_ms_peak","net_kbps_avg","net_kbps_peak"],
+    "blockers": ["vm","severity","blocker","detail","cluster","vm_moref"],
+    "rightsizing": ["vm","basis","configured_vcpu","configured_mem_gib","p95_cpu_pct","p95_mem_gib","req_vcpu","req_mem_gib","candidate_instance","candidate_vcpu","candidate_mem_gib","fits","vm_moref"],
+    "licensing": ["vm","windows_server","sql_server","oracle","note","vm_moref"],
+    "tags": ["category","tag","description"]
+  },
+  "inventory_keys": {
+    "datacenters": "datacenters", "clusters": "clusters", "hosts": "hosts",
+    "licenses": "licenses", "datastores": "datastores", "dvswitches": "dvswitches",
+    "networks": "networks", "standard_switches": "standardSwitches",
+    "standard_portgroups": "standardPortgroups", "resourcepools": "resourcePools",
+    "vms": "vms", "disks": "disks", "nics": "nics", "snapshots": "snapshots",
+    "tags": "tags", "utilization": "utilization", "blockers": "blockers",
+    "rightsizing": "rightsizing", "licensing": "licensing"
+  }
+}

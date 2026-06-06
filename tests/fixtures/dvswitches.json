@@ -1,0 +1,9 @@
+[
+  { "obj": { "type": "VmwareDistributedVirtualSwitch", "value": "dvs-30" },
+    "propSet": [
+      { "name": "name", "val": "vDS-Prod" },
+      { "name": "summary.numPorts", "val": 512 },
+      { "name": "summary.productInfo.version", "val": "8.0.0" },
+      { "name": "uuid", "val": "50 12 ab cd 11 22 33 44-aa bb cc dd ee ff 00 11" }
+    ] }
+]

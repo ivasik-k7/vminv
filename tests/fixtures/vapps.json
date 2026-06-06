@@ -1,0 +1,10 @@
+[
+  { "obj": { "type": "VirtualApp", "value": "resgroup-v60" },
+    "propSet": [
+      { "name": "name", "val": "App-Tier-vApp" },
+      { "name": "config.cpuAllocation.reservation", "val": 0 },
+      { "name": "config.cpuAllocation.limit", "val": -1 },
+      { "name": "config.memoryAllocation.reservation", "val": 0 },
+      { "name": "config.memoryAllocation.limit", "val": -1 }
+    ] }
+]

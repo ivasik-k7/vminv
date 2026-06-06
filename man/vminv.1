@@ -1,0 +1,115 @@
+.TH VMINV 1 "2026" "vminv 0.3" "vminv Manual"
+.SH NAME
+vminv \- read-only VMware vSphere pre-migration inventory & assessment
+.SH SYNOPSIS
+.B vminv
+[\fIscan\fR] [\fIoptions\fR]
+.br
+.B vminv
+\fIcommand\fR [\fIargs\fR]
+.SH DESCRIPTION
+.B vminv
+performs a strictly read-only inventory and migration-readiness assessment of a
+VMware vSphere environment, producing machine-readable tables (CSV + JSON) and a
+human-readable report. It never creates, modifies, powers, reconfigures,
+snapshots, or deletes anything in vCenter.
+.SH COMMANDS
+.TP
+.B scan
+Collect inventory, utilization, and migration blockers (the default command).
+.TP
+.B configure \fR[\fIprofile\fR]
+Interactively create/update a named profile (aws-cli style). No secrets are stored.
+.TP
+.B profiles \fR[show \fIprofile\fR]
+List profiles, or print one (secrets redacted).
+.TP
+.B upload \fIdir\fR [\fB--dest\fR \fIurl\fR]
+Ship a run directory to a destination (s3://, gs://, az://, sftp://, https://, path).
+.TP
+.B schedule \fRadd|list|remove|run
+Manage a cron job that scans and uploads on a schedule.
+.TP
+.B upgrade \fR[\fB--repo\fR \fIowner/name\fR] [\fB--check\fR]
+Self-update from GitHub Releases.
+.TP
+.B completion \fRbash|zsh|fish
+Print a shell completion script.
+.TP
+.B version | help
+Print version, or help (\fBvminv help \fIcommand\fR for per-command help).
+.SH OPTIONS
+.TP
+.BR \-p ", " \-\-profile " " \fINAME\fR
+Use a configured profile.
+.TP
+.BR \-n ", " \-\-dry\-run
+Read-only login + list one object, then exit.
+.TP
+.B \-\-no\-perf
+Skip the utilization pass.
+.TP
+.B \-\-target " " \fIaws|azure|gcp\fR
+Cloud target for analysis and right-sizing.
+.TP
+.BR \-\-datacenter ", " \-\-cluster ", " \-\-folder ", " \-\-vm " " \fIGLOB\fR
+Scope filters.
+.TP
+.B \-\-output " " \fIDIR\fR
+Base output directory.
+.TP
+.B \-\-dest " " \fIURL\fR
+Upload destination for this run.
+.TP
+.B \-\-format " " \fItable|json\fR
+Final summary format on stdout (json is machine-readable).
+.TP
+.BR \-q ", " \-\-quiet ", " \-v ", " \-\-verbose
+Decrease / increase log verbosity.
+.TP
+.BR \-\-no\-color ", " \-\-no\-progress
+Disable color / progress output. \fBNO_COLOR\fR is also honored.
+.TP
+.BR \-C ", " \-\-config " " \fIFILE\fR
+Load a specific config file instead of a profile.
+.TP
+.B \-\-fixtures " " \fIDIR\fR
+Offline: read canned JSON instead of contacting vCenter.
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 1
+Generic runtime error.
+.TP
+.B 2
+Usage / bad arguments.
+.TP
+.B 3
+Connectivity or authentication failure.
+.TP
+.B 4
+Completed with partial data (some objects unreadable).
+.TP
+.B 130
+Interrupted (SIGINT).
+.SH ENVIRONMENT
+.TP
+.B VCENTER_PASSWORD
+vCenter password (alternative to prompt / OS keyring). Never logged.
+.TP
+.B VMINV_PROFILE
+Default profile name.
+.TP
+.B NO_COLOR
+If set, disables colored output.
+.SH FILES
+.TP
+.I ~/.config/vminv/profiles/<name>.env
+Named profiles (mode 600, no secrets).
+.SH SECURITY
+Strictly read-only against vCenter. The password is supplied via environment,
+OS keyring, or prompt and is never written to logs, profiles, or output.
+.SH SEE ALSO
+Project README and docs/ for the full data dictionary and design.

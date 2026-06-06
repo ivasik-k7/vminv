@@ -1,0 +1,570 @@
+#!/usr/bin/env bash
+#
+# vminv — read-only VMware vSphere pre-migration inventory & assessment CLI.
+#
+# Commands:
+#   scan (default)  collect inventory + utilization + blocker analysis
+#   configure       create/update a named profile (aws-cli-style)
+#   profiles        list configured profiles  (profiles show NAME)
+#   upload DIR      ship a run's output to the configured destination
+#   schedule        manage a cron job (add|list|remove|run)
+#   upgrade         self-update from GitHub Releases
+#   version | help
+#
+# vminv issues ONLY read/query operations against vCenter. It never creates,
+# modifies, powers, reconfigures, snapshots, or deletes anything. See README.
+
+set -euo pipefail
+
+VMINV_VERSION="0.3.0"
+
+# --- Locate self / load library ---------------------------------------------
+SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P)"
+# If invoked via a symlink (installed CLI), resolve to the real install dir.
+if [ -L "${BASH_SOURCE[0]}" ]; then
+  _real="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || true)"
+  [ -n "$_real" ] && SELF_DIR="$(cd -- "$(dirname -- "$_real")" && pwd -P)"
+fi
+# shellcheck source=lib/common.sh
+source "${SELF_DIR}/lib/common.sh"
+for _m in collect_infra collect_vms collect_perf analyze_blockers rightsize report profile upload schedule upgrade completion diagnostics; do
+  # shellcheck disable=SC1090
+  source "${SELF_DIR}/lib/${_m}.sh"
+done
+
+# --- Defaults for CLI-settable values ---------------------------------------
+COMMAND=""
+CONFIG_FILE_EXPLICIT=""
+PROFILE="${VMINV_PROFILE:-}"
+DO_DRY_RUN=0
+DO_PERF=1
+WANT_HELP=0
+OUTPUT_FORMAT="table"   # table (human) | json (machine, stdout)
+RUN_COMPLETE=0          # set once a scan finishes (for the interrupt marker)
+declare -a ARGS=()            # positional args for the chosen subcommand
+# CLI overrides are collected here and applied AFTER config load (CLI > env > file).
+declare -A CLI=()
+
+usage() {
+  cat <<'EOF'
+vminv — read-only VMware vSphere pre-migration inventory & assessment
+
+USAGE:
+  vminv [scan] [options]            collect inventory + utilization + blockers
+  vminv configure [PROFILE]         create/update a profile (interactive or --set)
+  vminv config                      show the effective config + credential status
+  vminv doctor                      diagnose readiness and show next steps
+  vminv demo                        run a full scan on bundled sample data (no vCenter)
+  vminv profiles [show PROFILE]     list profiles (or print one)
+  vminv upload DIR [--dest URL]     ship a run directory to a destination
+  vminv schedule add|list|remove|run [--profile P] [--cron "E"|--preset N]
+  vminv upgrade [--repo owner/name] [--check]
+  vminv completion bash|zsh|fish    print a shell completion script
+  vminv version | help
+
+COMMON OPTIONS (scan):
+  --profile NAME            use a configured profile (~/.config/vminv/profiles)
+  --dry-run                 read-only login + list one object, then exit
+  --no-perf                 skip the utilization pass (no right-sizing data)
+  --config FILE             load a specific config file instead of a profile
+  --target aws|azure|gcp    cloud target for analysis/right-sizing
+  --datacenter / --cluster / --folder / --vm GLOB   scope filters
+  --perf-days N             utilization look-back window in days
+  --output DIR              base output directory
+  --dest URL                upload destination (s3://, gs://, az://, sftp://, https://, path)
+  --insecure                allow self-signed TLS certs (warns loudly)
+  --fixtures DIR            OFFLINE: read canned JSON instead of contacting vCenter
+  -h, --help | --version
+
+SAFETY: strictly read-only. The vCenter password comes from $VCENTER_PASSWORD,
+the OS keyring, or an interactive prompt — never written to logs or profiles.
+EOF
+}
+
+# Focused per-command help with examples. `vminv <cmd> --help` / `vminv help <cmd>`.
+help_for() {
+  case "${1:-}" in
+    scan) cat <<'EOF'
+vminv scan — collect inventory, utilization, and migration blockers (default command)
+
+USAGE: vminv [scan] [options]
+OPTIONS:
+  -p, --profile NAME     use a configured profile
+  -n, --dry-run          read-only login + list one object, then exit
+      --no-perf          skip the utilization pass
+      --target P         aws|azure|gcp (cloud target for analysis)
+      --datacenter/--cluster/--folder/--vm GLOB   scope filters
+      --perf-days N      utilization look-back window
+      --output DIR       base output directory
+      --dest URL         upload the run to a destination (see `vminv upload --help`)
+      --format table|json   final summary on stdout (json = machine-readable)
+      --insecure         allow self-signed TLS (warns)
+      --fixtures DIR     OFFLINE: read canned JSON instead of contacting vCenter
+EXAMPLES:
+  vminv --profile prod
+  vminv --cluster Prod-01 --no-perf --format json
+  vminv -n -p prod         # dry-run connectivity check
+EOF
+      ;;
+    configure) cat <<'EOF'
+vminv configure [PROFILE] — create/update a profile (aws-cli style)
+
+Interactive (TTY), or non-interactive with --set. Writes
+~/.config/vminv/profiles/<PROFILE>.env (mode 600, no secrets).
+EXAMPLES:
+  vminv configure                 # interactive, 'default' profile
+  vminv configure prod
+  vminv configure prod --set VCENTER_HOST=vc.lab --set VCENTER_USER=svc@vsphere.local --set TARGET_PROVIDER=azure
+EOF
+      ;;
+    config) cat <<'EOF'
+vminv config — print the effective, resolved configuration and where the vCenter
+password will come from (env / OS keyring / prompt). Secrets are never shown.
+Honors --profile / --config. Example:  vminv --profile prod config
+EOF
+      ;;
+    doctor) cat <<'EOF'
+vminv doctor — diagnose readiness: tool versions, profiles, effective config,
+credential status, output writability, and a clear go/no-go verdict with the
+exact next steps. Runs offline (no vCenter contact).
+EOF
+      ;;
+    demo) cat <<'EOF'
+vminv demo — run the FULL pipeline against bundled sample fixtures (no vCenter,
+no credentials) so you can see every output (CSV/JSON + summary.md) immediately.
+EOF
+      ;;
+    profiles|profile) cat <<'EOF'
+vminv profiles [show PROFILE] — list profiles, or print one (secrets redacted)
+EXAMPLES:
+  vminv profiles
+  vminv profiles show prod
+EOF
+      ;;
+    upload) cat <<'EOF'
+vminv upload DIR [--dest URL] — ship a run directory to a destination
+
+DEST schemes: s3://  gs://  az://  sftp://  https:// (PUT/JFrog)  /local/path
+Auth via the ambient chain (AWS_*, gcloud, az, ssh) or UPLOAD_TOKEN (Bearer).
+EXAMPLES:
+  vminv upload ./output/2026... --dest s3://bucket/vminv
+  vminv upload ./output/2026... --dest https://artifactory/.../vminv
+EOF
+      ;;
+    schedule) cat <<'EOF'
+vminv schedule add|list|remove|run — manage a recurring scan+upload (cron)
+
+  add     [--profile P] [--cron "EXPR" | --preset N]   (no cron => pick from 5 presets)
+  list                                                 show installed schedules
+  remove  [--profile P]                                remove (all, or one profile)
+  run     --profile P                                  what cron invokes (scan + upload)
+EXAMPLES:
+  vminv schedule add --profile prod --preset 3     # daily 02:00
+  vminv schedule add --profile prod --cron "0 */6 * * *"
+EOF
+      ;;
+    upgrade) cat <<'EOF'
+vminv upgrade [--repo owner/name] [--check] — self-update from GitHub Releases
+Repo comes from --repo, $VMINV_REPO, or the active profile.
+EOF
+      ;;
+    *) usage ;;
+  esac
+}
+
+# Known subcommands (anything else is treated as scan options).
+_is_command() { case "$1" in scan|configure|profiles|profile|config|doctor|demo|upload|schedule|upgrade|completion|version|help) return 0;; *) return 1;; esac; }
+
+# --- Parse CLI --------------------------------------------------------------
+parse_args() {
+  COMMAND=""   # detected as the first bare token that is a known command (may follow global flags)
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -n|--dry-run)  DO_DRY_RUN=1 ;;
+      --no-perf)     DO_PERF=0 ;;
+      -q|--quiet)    VMINV_VERBOSITY=0 ;;
+      -v|--verbose)  VMINV_VERBOSITY=2 ;;
+      --no-color)    VMINV_NO_COLOR=1 ;;
+      --no-progress) VMINV_NO_PROGRESS=1 ;;
+      --format)      OUTPUT_FORMAT="$2"; shift ;;
+      --format=*)    OUTPUT_FORMAT="${1#*=}" ;;
+      -p|--profile)  PROFILE="$2"; shift ;;
+      --profile=*)   PROFILE="${1#*=}" ;;
+      -C|--config)   CONFIG_FILE_EXPLICIT="$2"; shift ;;
+      --config=*)    CONFIG_FILE_EXPLICIT="${1#*=}" ;;
+      --target)      CLI[TARGET_PROVIDER]="$2"; shift ;;
+      --target=*)    CLI[TARGET_PROVIDER]="${1#*=}" ;;
+      --datacenter)  CLI[SCOPE_DATACENTER]="$2"; shift ;;
+      --datacenter=*)CLI[SCOPE_DATACENTER]="${1#*=}" ;;
+      --cluster)     CLI[SCOPE_CLUSTER]="$2"; shift ;;
+      --cluster=*)   CLI[SCOPE_CLUSTER]="${1#*=}" ;;
+      --folder)      CLI[SCOPE_FOLDER]="$2"; shift ;;
+      --folder=*)    CLI[SCOPE_FOLDER]="${1#*=}" ;;
+      --vm)          CLI[SCOPE_VM_GLOB]="$2"; shift ;;
+      --vm=*)        CLI[SCOPE_VM_GLOB]="${1#*=}" ;;
+      --perf-days)   CLI[PERF_WINDOW_DAYS]="$2"; shift ;;
+      --perf-days=*) CLI[PERF_WINDOW_DAYS]="${1#*=}" ;;
+      --output)      CLI[OUTPUT_DIR]="$2"; shift ;;
+      --output=*)    CLI[OUTPUT_DIR]="${1#*=}" ;;
+      --dest)        CLI[UPLOAD_DEST]="$2"; shift ;;
+      --dest=*)      CLI[UPLOAD_DEST]="${1#*=}" ;;
+      --insecure)    CLI[VCENTER_INSECURE]="true" ;;
+      --cron)        CLI[__cron]="$2"; shift ;;
+      --cron=*)      CLI[__cron]="${1#*=}" ;;
+      --preset)      CLI[__preset]="$2"; shift ;;
+      --preset=*)    CLI[__preset]="${1#*=}" ;;
+      --fixtures)    VMINV_FIXTURES="$2"; shift ;;
+      --fixtures=*)  VMINV_FIXTURES="${1#*=}" ;;
+      -h|--help)     WANT_HELP=1 ;;
+      --version)     echo "vminv ${VMINV_VERSION}"; exit 0 ;;
+      --)            shift; while [ $# -gt 0 ]; do ARGS+=("$1"); shift; done; break ;;
+      --*)           ARGS+=("$1") ;;   # subcommand-specific flag (e.g. upgrade --repo)
+      *)             if [ -z "$COMMAND" ] && _is_command "$1"; then COMMAND="$1"; else ARGS+=("$1"); fi ;;
+    esac
+    shift
+  done
+  [ -z "$COMMAND" ] && COMMAND="scan"
+  export VMINV_FIXTURES="${VMINV_FIXTURES:-}"
+  setup_colors   # re-evaluate now that --no-color / verbosity are known
+}
+
+# Suggest the closest known command on a typo (cheap prefix/substring match).
+_suggest_command() {
+  local w="$1" c
+  for c in scan configure profiles upload schedule upgrade version help; do
+    case "$c" in "$w"*|*"$w"*) printf ' Did you mean '\''vminv %s'\''?' "$c"; return;; esac
+  done
+}
+
+# Resolve which config file to load: explicit --config > --profile > repo .env >
+# default profile > repo .env (fallback). Profiles never contain secrets.
+resolve_config_file() {
+  if [ -n "$CONFIG_FILE_EXPLICIT" ]; then printf '%s' "$CONFIG_FILE_EXPLICIT"; return; fi
+  if [ -n "$PROFILE" ]; then
+    local pf; pf="$(vminv_profile_file "$PROFILE")"
+    [ -f "$pf" ] || die "Profile '${PROFILE}' not found (${pf}). Create it: vminv configure ${PROFILE}"
+    printf '%s' "$pf"; return
+  fi
+  if [ -f "${SELF_DIR}/.env" ]; then printf '%s' "${SELF_DIR}/.env"; return; fi
+  local dp; dp="$(vminv_profile_file default)"
+  if [ -f "$dp" ]; then printf '%s' "$dp"; return; fi
+  printf '%s' "${SELF_DIR}/.env"
+}
+
+apply_cli_overrides() {
+  local k
+  [ "${#CLI[@]}" -gt 0 ] || return 0   # empty assoc-array expansion errors on bash<4.4
+  for k in "${!CLI[@]}"; do
+    printf -v "$k" '%s' "${CLI[$k]}"
+  done
+}
+
+validate_config() {
+  case "${TARGET_PROVIDER}" in
+    aws|azure|gcp) ;;
+    *) usage_error "invalid --target '${TARGET_PROVIDER}' (expected aws|azure|gcp)" ;;
+  esac
+  case "${PERF_INTERVAL}" in
+    realtime|daily|weekly|monthly) ;;
+    *) usage_error "invalid PERF_INTERVAL '${PERF_INTERVAL}' (realtime|daily|weekly|monthly)" ;;
+  esac
+  [[ "${PERF_WINDOW_DAYS}" =~ ^[0-9]+$ ]] || usage_error "PERF_WINDOW_DAYS must be a number"
+}
+
+# Resolve credentials & govc env for LIVE mode. No-op in fixture mode.
+prepare_connection() {
+  [ -n "${VMINV_FIXTURES}" ] && { info "Fixture mode: ${VMINV_FIXTURES} (no vCenter contact)"; return 0; }
+
+  if [ -z "${VCENTER_HOST:-}" ] || [ "${VCENTER_HOST:-}" = "vcenter.example.com" ] || [ -z "${VCENTER_USER:-}" ]; then
+    err "vCenter is not configured yet (host/user missing or still the placeholder)."
+    err "  Configure it:   vminv configure          (or: vminv configure prod --set VCENTER_HOST=… --set VCENTER_USER=…)"
+    err "  Check status:   vminv doctor"
+    err "  No vCenter yet? See it work on sample data:   vminv demo"
+    exit "$EX_USAGE"
+  fi
+
+  # Password resolution order: env var > OS keyring (if profile uses it) > prompt.
+  if [ -z "${VCENTER_PASSWORD:-}" ] && [ "${PASSWORD_SOURCE:-prompt}" = "keyring" ] && [ -n "$PROFILE" ]; then
+    VCENTER_PASSWORD="$(keyring_get "$PROFILE" 2>/dev/null || true)"
+    [ -n "${VCENTER_PASSWORD:-}" ] && dbg "Password loaded from OS keyring for profile ${PROFILE}"
+  fi
+  if [ -z "${VCENTER_PASSWORD:-}" ]; then
+    if [ -t 0 ]; then
+      printf '%sPassword for %s@%s: %s' "$C_BOLD" "$VCENTER_USER" "$VCENTER_HOST" "$C_RST" >&2
+      read -rs VCENTER_PASSWORD; echo >&2
+    else
+      die "VCENTER_PASSWORD not set and no TTY to prompt. Export VCENTER_PASSWORD or use a keyring profile."
+    fi
+  fi
+  [ -n "${VCENTER_PASSWORD:-}" ] || die "Empty password; aborting."
+  redact_register "$VCENTER_PASSWORD"
+  setup_govc_env
+}
+
+# Create the timestamped run directory and open the run log.
+init_output() {
+  RUN_TS="$(date -u +%Y%m%dT%H%M%SZ)"
+  RUN_DIR="${OUTPUT_DIR%/}/${RUN_TS}"
+  mkdir -p "$RUN_DIR"
+  RUN_LOG="${RUN_DIR}/run.log"
+  : >"$RUN_LOG"
+  info "Run output: ${RUN_DIR}"
+  dbg "vminv ${VMINV_VERSION} | target=${TARGET_PROVIDER} | perf=${PERF_WINDOW_DAYS}d/${PERF_INTERVAL}"
+  dbg "scope: dc='${SCOPE_DATACENTER:-}' cluster='${SCOPE_CLUSTER:-}' folder='${SCOPE_FOLDER:-}' vm='${SCOPE_VM_GLOB:-}'"
+}
+
+# --- about / version ---------------------------------------------------------
+# Parse `govc about -json` (handles both 'about' and legacy 'About' keys).
+fetch_about() {
+  govc_query about about -json | "$JQ_BIN" '
+    (.about // .About) as $a
+    | { name: $a.name, fullName: $a.fullName, version: $a.version,
+        build: $a.build, apiType: $a.apiType, apiVersion: $a.apiVersion }'
+}
+
+# --- Commands ---------------------------------------------------------------
+cmd_dry_run() {
+  info "Dry run: validating read-only connectivity (no data will be written to vCenter)."
+  local about
+  about="$(fetch_about)" || die "$EX_CONN" "could not query vCenter 'about' — check host, credentials, and network/TLS."
+  local ver build name
+  ver="$("$JQ_BIN" -r '.version // "?"' <<<"$about")"
+  build="$("$JQ_BIN" -r '.build // "?"' <<<"$about")"
+  name="$("$JQ_BIN" -r '.name // "?"' <<<"$about")"
+  ok "Connected: ${name} ${ver} (build ${build})"
+
+  # Read-only "list one object" proof: top-level inventory entries.
+  local listing
+  if [ -n "${VMINV_FIXTURES}" ]; then
+    listing="$(govc_query inventory_root ls 2>/dev/null || true)"
+  else
+    listing="$(govc_ro ls / 2>/dev/null || true)"
+  fi
+  if [ -n "$listing" ]; then
+    local first; first="$(printf '%s\n' "$listing" | head -1)"
+    ok "Inventory reachable (e.g. '${first}')."
+  else
+    warn "Connected, but top-level listing was empty (check the account's visibility/scope)."
+  fi
+  ok "Dry run OK — configuration and read-only access verified."
+}
+
+# Assemble the combined inventory.json from whatever category files exist.
+# Missing categories default to [] / {} so the file always has a stable shape.
+assemble_inventory() {
+  local d="$RUN_DIR" cat
+  # category -> JSON key mapping (file basename : inventory key)
+  local -A CATS=(
+    [datacenters]=datacenters [clusters]=clusters [hosts]=hosts
+    [licenses]=licenses [datastores]=datastores [dvswitches]=dvswitches
+    [networks]=networks [standard_switches]=standardSwitches
+    [standard_portgroups]=standardPortgroups [resourcepools]=resourcePools
+    [vms]=vms [disks]=disks [nics]=nics [snapshots]=snapshots [tags]=tags
+    [utilization]=utilization [blockers]=blockers
+    [rightsizing]=rightsizing [licensing]=licensing
+  )
+  local args=() prog='{ meta: { tool: "vminv", version: $version, generated_at: $generated_at, target: $target },'
+  prog+=' vcenter: ( ($vcenter | if type=="array" then .[0] else . end) // {} ),'
+  local vcfile; vcfile="${d}/vcenter.json"
+  if [ -f "$vcfile" ]; then args+=(--slurpfile vcenter "$vcfile"); else args+=(--argjson vcenter '{}'); fi
+  local j
+  for cat in "${!CATS[@]}"; do
+    j="$(cat "${d}/${cat}.json" 2>/dev/null || true)"   # || true: missing file must not trip set -e
+    [ -n "$j" ] || j='[]'                                # empty/missing file -> empty array
+    args+=(--argjson "$cat" "$j")
+    prog+=" ${CATS[$cat]}: \$${cat},"
+  done
+  # counts block
+  prog+=' counts: {'
+  for cat in "${!CATS[@]}"; do prog+=" ${cat}: (\$${cat}|length),"; done
+  prog="${prog%,} } }"
+  "$JQ_BIN" -n "${args[@]}" \
+    --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg version "$VMINV_VERSION" --arg target "$TARGET_PROVIDER" \
+    "$prog" >"${d}/inventory.json"
+  # tidy internal scratch maps (not part of the deliverable schema)
+  rm -f "${d}/_folders.json" "${d}/_vm_tags.json"
+  ok "Assembled inventory.json"
+}
+
+cmd_scan() {
+  init_output
+  info "Starting read-only inventory scan."
+
+  # Connectivity proof first (also captures vCenter version for the record).
+  local about
+  if about="$(fetch_about 2>/dev/null)"; then
+    printf '%s\n' "$about" >"${RUN_DIR}/vcenter.json"
+    ok "vCenter: $("$JQ_BIN" -r '"\(.name) \(.version) build \(.build)"' <<<"$about")"
+  elif [ -z "${VMINV_FIXTURES}" ]; then
+    # Live mode: if we cannot even read 'about', the whole scan would be empty.
+    die "$EX_CONN" "cannot reach vCenter (read of 'about' failed) — check host, credentials, TLS."
+  fi
+
+  # Infrastructure inventory (datacenters, clusters, hosts, datastores, networks, pools).
+  phase "Infrastructure"
+  collect_infra "$RUN_DIR"
+
+  # Full VM inventory + disks/nics/snapshots. A failure is logged, not fatal.
+  phase "Virtual machines"
+  collect_vms "$RUN_DIR" || { err "VM collection error; partial output in ${RUN_DIR}."; mark_partial; }
+
+  # Utilization / right-sizing data (per-VM perf; can be slow — gated by --no-perf).
+  if [ "$DO_PERF" -eq 1 ]; then
+    phase "Utilization"
+    collect_perf "$RUN_DIR" || { err "Utilization pass failed; continuing without it."; mark_partial; }
+  else
+    info "Skipping utilization pass (--no-perf)."
+  fi
+
+  # Migration blocker / risk analysis (pure analysis over collected data).
+  phase "Blocker analysis"
+  analyze_blockers "$RUN_DIR" "$TARGET_PROVIDER" || { err "Blocker analysis failed."; mark_partial; }
+
+  # Right-sizing + licensing, then the human-readable report.
+  phase "Right-sizing & report"
+  compute_rightsizing "$RUN_DIR" "$TARGET_PROVIDER" || { err "Right-sizing failed."; mark_partial; }
+  compute_licensing   "$RUN_DIR" || { err "Licensing analysis failed."; mark_partial; }
+  generate_report     "$RUN_DIR" "$TARGET_PROVIDER" || { err "Report generation failed."; mark_partial; }
+
+  phase "Assembly"
+  assemble_inventory
+
+  RUN_COMPLETE=1
+  local n; n="$(csv_count_rows "${RUN_DIR}/vms.csv")"
+  ok "Scan complete. ${n} VM(s). Output in ${RUN_DIR}"
+
+  # Optional: ship the run to the configured destination (--dest or profile).
+  if [ -n "${UPLOAD_DEST:-}" ]; then
+    phase "Upload"
+    upload_run "$RUN_DIR" "$UPLOAD_DEST" || { err "Upload to '${UPLOAD_DEST}' failed (run output is still on disk)."; mark_partial; }
+  fi
+
+  # Machine-readable result on stdout when --format json (stdout stays data-only).
+  if [ "$OUTPUT_FORMAT" = "json" ]; then
+    "$JQ_BIN" -n --arg dir "$RUN_DIR" --argjson partial "$VMINV_PARTIAL" \
+      --slurpfile counts <("$JQ_BIN" '.counts' "${RUN_DIR}/inventory.json") \
+      --slurpfile readiness <("$JQ_BIN" '[.vms[].migration_status]|group_by(.)|map({key:.[0],value:length})|from_entries' "${RUN_DIR}/inventory.json") \
+      '{run_dir:$dir, partial:($partial==1), counts:$counts[0], readiness:$readiness[0]}'
+  fi
+
+  [ "$VMINV_PARTIAL" -eq 1 ] && exit "$EX_PARTIAL"
+  return 0
+}
+
+# Load config (tolerant): resolve the file and source it; never dies on absence.
+load_config_resolved() { RESOLVED_CONFIG_FILE="$(resolve_config_file)"; load_config "$RESOLVED_CONFIG_FILE"; apply_cli_overrides; }
+
+# The full scan path (also used by `schedule run`).
+run_scan_path() {
+  require_runtime
+  load_config_resolved
+  validate_config
+  prepare_connection
+  if [ "$DO_DRY_RUN" -eq 1 ]; then cmd_dry_run; else cmd_scan; fi
+}
+
+# --- Main -------------------------------------------------------------------
+main() {
+  parse_args "$@"
+  require_bash
+
+  # `vminv <cmd> --help` / `vminv help [cmd]`
+  if [ "$WANT_HELP" -eq 1 ]; then help_for "$COMMAND"; exit 0; fi
+  case "$OUTPUT_FORMAT" in table|json) ;; *) usage_error "invalid --format '${OUTPUT_FORMAT}' (table|json)";; esac
+
+  case "$COMMAND" in
+    version) echo "vminv ${VMINV_VERSION}"; exit 0 ;;
+    help)    help_for "${ARGS[0]:-}"; exit 0 ;;
+    completion) cmd_completion "${ARGS[0]:-}"; exit 0 ;;
+
+    config)  load_config_resolved 2>/dev/null || true; cmd_config; exit 0 ;;
+    doctor)  load_config_resolved 2>/dev/null || true; cmd_doctor; exit 0 ;;
+    demo)
+      info "Demo: scanning bundled sample data (no vCenter, no credentials needed)."
+      export VMINV_FIXTURES="${SELF_DIR}/tests/fixtures"
+      load_config_resolved 2>/dev/null || true
+      [ -n "${CLI[OUTPUT_DIR]:-}" ] || OUTPUT_DIR="${OUTPUT_DIR:-./output}"
+      validate_config; cmd_scan
+      ok "Demo done. Open the report:  ${RUN_DIR}/summary.md"
+      exit 0 ;;
+
+    configure)
+      # Non-interactive: vminv configure [NAME] --set KEY=VAL [--set KEY=VAL ...]
+      local cname="default"; local -a sets=(); local i
+      for ((i=0; i<${#ARGS[@]}; i++)); do
+        case "${ARGS[$i]}" in
+          --set) i=$((i+1)); [ "$i" -lt "${#ARGS[@]}" ] && sets+=("${ARGS[$i]}") ;;
+          --set=*) sets+=("${ARGS[$i]#*=}") ;;
+          --*) ;;                              # ignore other flags here
+          *) cname="${ARGS[$i]}" ;;
+        esac
+      done
+      if [ "${#sets[@]}" -gt 0 ]; then
+        configure_apply "$cname" "${sets[@]}"
+        info "Review it:  vminv --profile ${cname} config"
+      elif [ -t 0 ]; then
+        cmd_configure "$cname"
+      else
+        usage_error "configure needs a TTY for the interactive flow, or use: vminv configure ${cname} --set KEY=VALUE ..."
+      fi
+      exit 0 ;;
+
+    profiles|profile)
+      if [ "${ARGS[0]:-}" = "show" ]; then profile_show "${ARGS[1]:-${PROFILE:-default}}"
+      else profile_list; fi; exit 0 ;;
+
+    upgrade)
+      load_config_resolved 2>/dev/null || true
+      cmd_upgrade ${ARGS[@]+"${ARGS[@]}"}; exit 0 ;;
+
+    upload)
+      [ "${#ARGS[@]}" -ge 1 ] || usage_error "upload requires a run directory: vminv upload DIR [--dest URL]"
+      require_runtime; load_config_resolved
+      upload_run "${ARGS[0]}" "${UPLOAD_DEST:-}"; exit $? ;;
+
+    schedule)
+      local sub="${ARGS[0]:-}"
+      case "$sub" in
+        list)   schedule_list ;;
+        remove) schedule_remove "${PROFILE:-}" ;;
+        add)
+          load_config_resolved 2>/dev/null || true
+          local cron="${CLI[__cron]:-}"
+          if [ -z "$cron" ] && [ -n "${CLI[__preset]:-}" ]; then
+            local idx=$(( ${CLI[__preset]} - 1 ))
+            [ "$idx" -ge 0 ] && [ "$idx" -lt "${#CRON_PRESETS[@]}" ] || die "Invalid --preset (1-${#CRON_PRESETS[@]})."
+            cron="${CRON_PRESETS[$idx]%%|*}"
+          fi
+          schedule_add "${PROFILE:-default}" "$cron" ;;
+        run)
+          PROFILE="${PROFILE:-default}"
+          run_scan_path ;;
+        *) usage_error "schedule needs a subcommand: add|list|remove|run" ;;
+      esac
+      exit 0 ;;
+
+    scan)
+      # scan takes no positional args; reject typos (likely a mistyped command).
+      if [ "${#ARGS[@]}" -gt 0 ]; then
+        usage_error "unexpected argument '${ARGS[0]}'.$(_suggest_command "${ARGS[0]}")"
+      fi
+      run_scan_path ;;
+    *) usage_error "unknown command '${COMMAND}'.$(_suggest_command "$COMMAND")" ;;
+  esac
+}
+
+# Cleanup + signal handling (industry-standard: leave no orphan temp dirs; mark
+# an interrupted run dir so partial output isn't mistaken for complete).
+_on_exit() { cleanup_tmpdirs; }
+_on_interrupt() {
+  cleanup_tmpdirs
+  [ -n "${RUN_DIR:-}" ] && [ "${RUN_COMPLETE:-0}" -eq 0 ] && touch "${RUN_DIR}/INCOMPLETE" 2>/dev/null
+  err "interrupted."
+  exit "$EX_INTERRUPT"
+}
+trap _on_exit EXIT
+trap _on_interrupt INT TERM
+umask 077          # secrets/profiles/run output default to owner-only
+
+main "$@"
