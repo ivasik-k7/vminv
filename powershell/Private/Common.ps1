@@ -92,6 +92,23 @@ function Get-AgeDays([string]$iso, [long]$nowEpoch) {
 }
 function Get-NowEpoch { [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() }
 
+# Git-tag-driven version (mirrors resolve_version in lib/common.sh).
+function Get-VminvVersion {
+  $base = '0.1.0'
+  $vf = Join-Path $script:VminvRepoRoot 'VERSION'
+  if (Test-Path $vf) { $b = (Get-Content $vf -ErrorAction SilentlyContinue | Select-Object -First 1); if ($b) { $base = $b.Trim() } }
+  if (Get-Command git -ErrorAction SilentlyContinue) {
+    try {
+      $desc = (& git -C $script:VminvRepoRoot describe --tags --dirty --always 2>$null)
+      if ($desc) {
+        if ($desc -match '^v[0-9]') { return $desc.Substring(1) }
+        return "$base-g$($desc -replace '^g','')"
+      }
+    } catch { }
+  }
+  return $base
+}
+
 # ConvertFrom-Json auto-converts ISO date strings to [DateTime], which mangles
 # timestamps (2026-05-01T08:00:00Z -> 05/01/2026 08:00:00). Parse via
 # System.Text.Json instead, which keeps strings as strings — required for

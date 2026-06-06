@@ -1,0 +1,54 @@
+name: Build artifacts
+
+# Produces downloadable .tgz bundles on every push to the default branch and
+# on-demand (Actions tab -> Build artifacts -> Run workflow). Grab them from the
+# run's "Artifacts" section — no git/curl needed on the target machine.
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # tags for version naming
+
+      - name: Resolve version
+        run: |
+          VER="$(git describe --tags --always --dirty 2>/dev/null || echo 0.1.0)"
+          VER="${VER#v}"
+          echo "VER=$VER" >> "$GITHUB_ENV"
+          echo "Version: $VER"
+
+      - name: Source tarball (needs internet on target for govc/jq)
+        run: git archive --format=tar.gz --prefix="vminv-${VER}/" -o "vminv-${VER}-src.tgz" HEAD
+
+      - name: Offline bundle (Linux x86_64 — includes govc + jq)
+        run: |
+          ./setup.sh --no-cli --user            # downloads pinned, checksum-verified govc + jq into ./bin
+          rm -rf stage && mkdir -p stage/vminv
+          git archive HEAD | tar -x -C stage/vminv   # tracked files (bin/ is gitignored, added next)
+          cp -a bin/. stage/vminv/bin/                  # vendor the tools into the bundle
+          tar czf "vminv-${VER}-offline-linux-amd64.tgz" -C stage vminv
+          echo "Built:"; ls -lh vminv-*.tgz
+          echo "Offline bundle contents (top):"; tar tzf "vminv-${VER}-offline-linux-amd64.tgz" | grep -E 'vminv/(vminv|setup.sh|bin/govc|bin/jq)$'
+
+      - name: Upload source tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: vminv-${{ env.VER }}-src
+          path: vminv-${{ env.VER }}-src.tgz
+          if-no-files-found: error
+
+      - name: Upload offline bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: vminv-${{ env.VER }}-offline-linux-amd64
+          path: vminv-${{ env.VER }}-offline-linux-amd64.tgz
+          if-no-files-found: error

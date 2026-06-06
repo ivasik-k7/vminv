@@ -16,7 +16,9 @@ PWSH="${PWSH:-$(command -v pwsh || true)}"
 [ -z "$PWSH" ] && [ -x /tmp/pwsh/pwsh ] && PWSH=/tmp/pwsh/pwsh
 
 echo "== PowerShell read-only static guard =="
-mut='New-VM|Set-VM|Remove-|Start-VM|Stop-VM|Restart-VM|Suspend-VM|Move-VM|New-Snapshot|Remove-Snapshot|Set-VMHost|New-HardDisk|Set-HardDisk|Mount-|Set-NetworkAdapter|Invoke-VMScript'
+# vСenter-mutating PowerCLI cmdlets (scoped to vSphere nouns so benign cmdlets
+# like Remove-Item / Set-Content / Set-Variable are not flagged).
+mut='New-VM|Set-VM|Start-VM|Stop-VM|Restart-VM|Suspend-VM|Move-VM|Invoke-VMScript|New-Snapshot|Remove-Snapshot|Set-Snapshot|Set-VMHost|Remove-VMHost|New-HardDisk|Set-HardDisk|Remove-HardDisk|Remove-VM|Remove-Datastore|New-VDSwitch|Remove-VDSwitch|Set-VMHostNetwork|Mount-VMHostDatastore|Set-NetworkAdapter|New-VMHostNetworkAdapter'
 if grep -rnE "$mut" "${ROOT}/powershell" --include='*.ps1' | grep -vE '^\s*#' >/dev/null 2>&1; then
   _fail "mutating PowerCLI verb found in powershell/"
 else
@@ -61,7 +63,7 @@ for t in $TABLES; do
 done
 
 echo "== inventory.json + vcenter.json semantically equal =="
-if diff -q <("$JQ" -S 'del(.meta.generated_at)' "${C}/inventory.json") <("$JQ" -S 'del(.meta.generated_at)' "${B}/inventory.json") >/dev/null; then _pass "inventory.json"; else _fail "inventory.json differs"; fi
+if diff -q <("$JQ" -S 'del(.meta.generated_at, .meta.version)' "${C}/inventory.json") <("$JQ" -S 'del(.meta.generated_at, .meta.version)' "${B}/inventory.json") >/dev/null; then _pass "inventory.json"; else _fail "inventory.json differs"; fi
 if diff -q <("$JQ" -S . "${C}/vcenter.json") <("$JQ" -S . "${B}/vcenter.json") >/dev/null; then _pass "vcenter.json"; else _fail "vcenter.json differs"; fi
 
 echo "== report byte-identical (timestamp-normalized) =="
