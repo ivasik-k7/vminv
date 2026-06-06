@@ -18,7 +18,7 @@ jobs:
     name: lint (syntax + shellcheck + PS parse)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: bash syntax (-n)
         run: for f in vminv setup.sh lib/*.sh tests/*.sh; do bash -n "$f"; done
       - name: shellcheck (errors only)
@@ -38,7 +38,7 @@ jobs:
     name: tests + bash⇄PowerShell conformance (linux)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with: { fetch-depth: 0 }  
       - name: Install pinned tools (govc + jq, checksum-verified)
         run: ./setup.sh --no-cli --user
@@ -57,7 +57,7 @@ jobs:
     name: tests (macOS, bash 4+ portability)
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with: { fetch-depth: 0 }
       - name: Install bash 4+ (macOS ships 3.2)
         run: brew install bash
@@ -74,7 +74,7 @@ jobs:
     name: PowerCLI path (Windows, native pwsh)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with: { fetch-depth: 0 }
       - name: PowerShell module fixture check
         shell: pwsh
