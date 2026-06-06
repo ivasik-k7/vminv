@@ -30,15 +30,26 @@ _latest_tag() { # _latest_tag <owner/repo>
 }
 
 cmd_upgrade() {
-  local repo="$VMINV_UPGRADE_REPO" check=0
+  local repo="$VMINV_UPGRADE_REPO" check=0 force=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --check) check=1 ;;
+      --force) force=1 ;;
       --repo|--repo=*) usage_error "the upgrade source is fixed (${VMINV_UPGRADE_REPO}); --repo is not supported" ;;
       *) usage_error "upgrade: unknown argument '$1'" ;;
     esac
     shift
   done
+
+  # `upgrade` is for INSTALLED copies. In a git checkout, git is the source of
+  # truth (and the file overwrite would dirty your tree), so refuse by default.
+  if [ "$force" -eq 0 ] && command -v git >/dev/null 2>&1 \
+     && git -C "$VMINV_INSTALL_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+    err "${VMINV_INSTALL_DIR} is a git checkout — not upgrading in place."
+    err "  Update it with git instead:   git -C '${VMINV_INSTALL_DIR}' fetch --tags && git -C '${VMINV_INSTALL_DIR}' checkout <tag>"
+    err "  (Use 'vminv upgrade --force' only if you really mean to overwrite the working tree.)"
+    exit "$EX_USAGE"
+  fi
   info "Current version: ${VMINV_VERSION}. Checking ${repo} for the latest release ..."
   local tag; tag="$(_latest_tag "$repo")"
   [ -n "$tag" ] || die "Could not determine the latest release of ${repo} (no releases, or network/API error)."
