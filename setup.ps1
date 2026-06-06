@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Ivan Kovtun
 <#
 .SYNOPSIS
     setup.ps1 — prepare a Windows machine for the vminv PowerShell (PowerCLI) path.

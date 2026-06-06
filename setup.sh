@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Ivan Kovtun
 #
 # setup.sh — prepare a machine to run vminv (read-only VMware inventory tool).
 #
@@ -52,7 +54,7 @@ warn()  { printf '%s[!]%s %s\n' "$C_YEL" "$C_RST" "$*" >&2; }
 err()   { printf '%s[x]%s %s\n' "$C_RED" "$C_RST" "$*" >&2; }
 die()   { err "$*"; exit 1; }
 
-usage() { sed -n '2,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0; }
+usage() { sed -n '4,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0; }
 
 # --- Parse args -------------------------------------------------------------
 while [ $# -gt 0 ]; do

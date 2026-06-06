@@ -1,0 +1,15 @@
+vminv
+Copyright 2026 Ivan Kovtun
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product vendors the following third-party tools at run time (downloaded by
+setup.sh, not bundled in source); each is distributed under its own license:
+
+  - govc (VMware govmomi) — Apache License 2.0
+    https://github.com/vmware/govmomi
+  - jq — MIT License
+    https://github.com/jqlang/jq
+
+The optional PowerShell path uses VMware PowerCLI, subject to the VMware
+end-user license terms.

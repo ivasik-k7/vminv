@@ -1,4 +1,6 @@
 #!/usr/bin/env pwsh
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Ivan Kovtun
 # vminv.ps1 — Windows-native CLI entrypoint mirroring the bash `vminv` UX.
 # Strictly read-only. Imports the Vminv module and dispatches subcommands.
 #

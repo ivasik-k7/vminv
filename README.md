@@ -164,3 +164,12 @@ CI must pass; the tag must match `VERSION`; it then publishes a GitHub Release w
 Feature-complete across all stages in **both** implementations, industry-standard
 CLI, fully offline-tested. Pending: validation against a live vCenter (API-format
 assumptions are isolated for an easy fix when you get there).
+
+## License & project
+
+Licensed under the **Apache License 2.0** — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) · Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- Security: [SECURITY.md](SECURITY.md) (report privately) · Changes: [CHANGELOG.md](CHANGELOG.md)
+
+© 2026 Ivan Kovtun.

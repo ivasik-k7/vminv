@@ -71,8 +71,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$TAG" \
-            checksums.txt "vminv-${VER}.tar.gz" "vminv-${VER}-offline-linux-amd64.tgz" \
-            --title "vminv ${TAG}" \
-            --generate-notes \
-            --verify-tag
+          assets=(checksums.txt "vminv-${VER}.tar.gz" "vminv-${VER}-offline-linux-amd64.tgz")
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — uploading/refreshing assets."
+            gh release upload "$TAG" "${assets[@]}" --clobber
+          else
+            gh release create "$TAG" "${assets[@]}" \
+              --title "vminv ${TAG}" --generate-notes --verify-tag
+          fi
