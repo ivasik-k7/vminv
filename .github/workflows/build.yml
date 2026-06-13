@@ -40,14 +40,14 @@ jobs:
           echo "Offline bundle contents (top):"; tar tzf "vminv-${VER}-offline-linux-amd64.tgz" | grep -E 'vminv/(vminv|setup.sh|bin/govc|bin/jq)$'
 
       - name: Upload source tarball
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vminv-${{ env.VER }}-src
           path: vminv-${{ env.VER }}-src.tgz
           if-no-files-found: error
 
       - name: Upload offline bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vminv-${{ env.VER }}-offline-linux-amd64
           path: vminv-${{ env.VER }}-offline-linux-amd64.tgz
