@@ -20,7 +20,7 @@ jobs:
     name: test gate (must pass before release)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - run: ./setup.sh --no-cli --user
       - run: ./tests/run_tests.sh
@@ -32,7 +32,7 @@ jobs:
     needs: gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
 
       - name: Version from tag
